@@ -1,100 +1,20 @@
 /* =========================================================
    College Transport Information Portal - Vanilla JavaScript
-   Handles: data rendering, search, filters, modal,
-   mobile nav, dark mode, dynamic status & result count.
+   ---------------------------------------------------------
+   The UI layer. It fetches data from the (mock) server via
+   TransportAPI (see js/api.js), shows loading states while
+   the request is in flight, then renders and wires up all
+   interactions: search, filters, modal, mobile nav, dark
+   mode and dynamic status.
    ========================================================= */
 
 "use strict";
 
 /* ---------------------------------------------------------
-   1. DATA - Bus information stored as an array of objects
+   1. Module state - filled once data arrives from the server
    --------------------------------------------------------- */
-const buses = [
-    {
-        number: "TN-32-01", route: "Route A", start: "Villupuram", destination: "College",
-        departure: "06:30 AM", arrival: "08:00 AM",
-        eveningDeparture: "05:30 PM", eveningArrival: "07:00 PM",
-        stops: 6, status: "Active",
-        stopsList: ["Villupuram Bus Stand", "Kandamangalam", "Vikravandi", "Mundiyampakkam", "Mailam", "College"]
-    },
-    {
-        number: "TN-32-02", route: "Route B", start: "Cuddalore", destination: "College",
-        departure: "06:15 AM", arrival: "08:10 AM",
-        eveningDeparture: "05:20 PM", eveningArrival: "07:15 PM",
-        stops: 5, status: "Active",
-        stopsList: ["Cuddalore Old Town", "Thirupapuliyur", "Panruti", "Neyveli", "College"]
-    },
-    {
-        number: "TN-32-03", route: "Route C", start: "Tindivanam", destination: "College",
-        departure: "06:40 AM", arrival: "07:55 AM",
-        eveningDeparture: "05:35 PM", eveningArrival: "06:50 PM",
-        stops: 4, status: "Delayed",
-        stopsList: ["Tindivanam Bus Stand", "Olakkur", "Mailam", "College"]
-    },
-    {
-        number: "TN-32-04", route: "Route D", start: "Pondicherry", destination: "College",
-        departure: "06:00 AM", arrival: "08:05 AM",
-        eveningDeparture: "05:10 PM", eveningArrival: "07:20 PM",
-        stops: 6, status: "Active",
-        stopsList: ["Pondicherry ISKON", "Villianur", "Madagadipet", "Mannadipet", "Vanur", "College"]
-    },
-    {
-        number: "TN-32-05", route: "Route E", start: "Vikravandi", destination: "College",
-        departure: "06:50 AM", arrival: "07:50 AM",
-        eveningDeparture: "05:40 PM", eveningArrival: "06:45 PM",
-        stops: 3, status: "Active",
-        stopsList: ["Vikravandi", "Mundiyampakkam", "College"]
-    },
-    {
-        number: "TN-32-06", route: "Route A", start: "Chidambaram", destination: "College",
-        departure: "05:50 AM", arrival: "08:15 AM",
-        eveningDeparture: "05:15 PM", eveningArrival: "07:40 PM",
-        stops: 7, status: "Delayed",
-        stopsList: ["Chidambaram", "Bhuvanagiri", "Kattumannarkoil", "Kurinjipadi", "Panruti", "Neyveli", "College"]
-    },
-    {
-        number: "TN-32-07", route: "Route B", start: "Kallakurichi", destination: "College",
-        departure: "06:10 AM", arrival: "08:20 AM",
-        eveningDeparture: "05:05 PM", eveningArrival: "07:25 PM",
-        stops: 6, status: "Active",
-        stopsList: ["Kallakurichi", "Chinnasalem", "Ulundurpet", "Thirukoilur", "Mugaiyur", "College"]
-    },
-    {
-        number: "TN-32-08", route: "Route C", start: "Gingee", destination: "College",
-        departure: "06:35 AM", arrival: "07:45 AM",
-        eveningDeparture: "05:45 PM", eveningArrival: "06:55 PM",
-        stops: 4, status: "Not Available",
-        stopsList: ["Gingee Fort", "Melmalayanur", "Olakkur", "College"]
-    },
-    {
-        number: "TN-32-09", route: "Route D", start: "Marakkanam", destination: "College",
-        departure: "06:25 AM", arrival: "08:00 AM",
-        eveningDeparture: "05:25 PM", eveningArrival: "07:05 PM",
-        stops: 5, status: "Active",
-        stopsList: ["Marakkanam", "Koonimedu", "Vanur", "Mundiyampakkam", "College"]
-    },
-    {
-        number: "TN-32-10", route: "Route E", start: "Mailam", destination: "College",
-        departure: "06:55 AM", arrival: "07:40 AM",
-        eveningDeparture: "05:50 PM", eveningArrival: "06:40 PM",
-        stops: 3, status: "Delayed",
-        stopsList: ["Mailam", "Vikravandi", "College"]
-    },
-    {
-        number: "TN-32-11", route: "Route A", start: "Neyveli", destination: "College",
-        departure: "06:05 AM", arrival: "08:00 AM",
-        eveningDeparture: "05:12 PM", eveningArrival: "07:10 PM",
-        stops: 6, status: "Active",
-        stopsList: ["Neyveli Block-1", "Neyveli Township", "Panruti", "Kurinjipadi", "Vadalur", "College"]
-    },
-    {
-        number: "TN-32-12", route: "Route B", start: "Ulundurpet", destination: "College",
-        departure: "06:20 AM", arrival: "08:10 AM",
-        eveningDeparture: "05:18 PM", eveningArrival: "07:15 PM",
-        stops: 5, status: "Not Available",
-        stopsList: ["Ulundurpet", "Thirukoilur", "Mugaiyur", "Vikravandi", "College"]
-    }
-];
+let buses = [];   // populated by loadData() from TransportAPI.getBuses()
+let stats = [];   // populated by loadData() from TransportAPI.getStats()
 
 /* ---------------------------------------------------------
    2. Helpers
@@ -113,19 +33,59 @@ const icons = {
     pin: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
     clock: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     flag: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4h13l-2 4 2 4H4"/></svg>',
+    user: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
     arrow: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>'
 };
 
-// Statistic cards data
-const stats = [
-    { num: buses.length, label: "Total Buses", icon: icons.bus },
-    { num: 12, label: "Total Routes", icon: icons.pin },
-    { num: 48, label: "Pickup Points", icon: icons.pin },
-    { num: 36, label: "Today's Trips", icon: icons.clock }
-];
+// Icon for each statistic card, keyed by the stat's "key"
+const statIcons = {
+    buses: icons.bus,
+    routes: icons.pin,
+    pickups: icons.pin,
+    trips: icons.clock
+};
 
 /* ---------------------------------------------------------
-   3. Render functions
+   3. Loading skeletons (shown while the server responds)
+   --------------------------------------------------------- */
+function showLoading() {
+    // Skeleton stat cards
+    const statsGrid = document.getElementById("statsGrid");
+    statsGrid.innerHTML = repeat(4,
+        '<article class="stat-card skeleton-card"><span class="skeleton skeleton--icon"></span>' +
+        '<div style="flex:1"><span class="skeleton skeleton--line"></span>' +
+        '<span class="skeleton skeleton--line short"></span></div></article>'
+    );
+
+    // Skeleton bus cards
+    const busGrid = document.getElementById("busGrid");
+    busGrid.innerHTML = repeat(6,
+        '<article class="bus-card skeleton-card">' +
+        '<span class="skeleton skeleton--line"></span>' +
+        '<span class="skeleton skeleton--block"></span>' +
+        '<span class="skeleton skeleton--line short"></span></article>'
+    );
+
+    // Result count
+    document.getElementById("resultCount").textContent = "Loading buses…";
+}
+
+// Build a string by repeating an HTML fragment n times
+function repeat(n, html) {
+    let out = "";
+    for (let i = 0; i < n; i++) out += html;
+    return out;
+}
+
+// Show an error message if the "server" request fails
+function showError() {
+    document.getElementById("busGrid").innerHTML =
+        '<p class="no-results">Could not load transport information. Please try again later.</p>';
+    document.getElementById("resultCount").textContent = "";
+}
+
+/* ---------------------------------------------------------
+   4. Render functions
    --------------------------------------------------------- */
 
 // Quick statistics cards
@@ -134,7 +94,7 @@ function renderStats() {
     grid.innerHTML = stats.map(function (s) {
         return (
             '<article class="stat-card">' +
-                '<span class="stat-card__icon" aria-hidden="true">' + s.icon + '</span>' +
+                '<span class="stat-card__icon" aria-hidden="true">' + (statIcons[s.key] || icons.bus) + '</span>' +
                 '<div>' +
                     '<div class="stat-card__num">' + s.num + '</div>' +
                     '<div class="stat-card__label">' + s.label + '</div>' +
@@ -161,6 +121,8 @@ function busCardHTML(bus) {
                 fact("Destination", bus.destination, icons.flag) +
                 fact("Departure", bus.departure, icons.clock) +
                 fact("Arrival", bus.arrival, icons.clock) +
+                fact("Driver", bus.driver, icons.user) +
+                fact("Capacity", bus.capacity + " seats", icons.user) +
             '</div>' +
 
             '<div class="bus-card__foot">' +
@@ -277,7 +239,7 @@ function shiftTime(timeStr, minutes) {
 }
 
 /* ---------------------------------------------------------
-   4. Search + filtering (works together)
+   5. Search + filtering (works together)
    --------------------------------------------------------- */
 function getFilteredBuses() {
     const query = document.getElementById("searchInput").value.trim().toLowerCase();
@@ -293,7 +255,7 @@ function getFilteredBuses() {
         // Free-text search across many fields, including pickup points
         if (query !== "") {
             const haystack = [
-                bus.number, bus.route, bus.start, bus.destination, bus.status
+                bus.number, bus.route, bus.start, bus.destination, bus.status, bus.driver
             ].concat(bus.stopsList).join(" ").toLowerCase();
 
             if (haystack.indexOf(query) === -1) return false;
@@ -323,7 +285,7 @@ function updateResultCount(count) {
 }
 
 /* ---------------------------------------------------------
-   5. Route modal
+   6. Route modal
    --------------------------------------------------------- */
 const modal = document.getElementById("routeModal");
 
@@ -360,7 +322,7 @@ function closeRouteModal() {
 }
 
 /* ---------------------------------------------------------
-   6. Mobile navigation (hamburger)
+   7. Mobile navigation (hamburger)
    --------------------------------------------------------- */
 function setupMobileNav() {
     const hamburger = document.getElementById("hamburger");
@@ -383,7 +345,7 @@ function setupMobileNav() {
 }
 
 /* ---------------------------------------------------------
-   7. Dark / light mode (saved in localStorage)
+   8. Dark / light mode (saved in localStorage)
    --------------------------------------------------------- */
 function setupTheme() {
     const toggle = document.getElementById("themeToggle");
@@ -410,11 +372,12 @@ function setupTheme() {
 }
 
 /* ---------------------------------------------------------
-   8. Dynamic status demo
+   9. Dynamic status demo
    Randomly refreshes some bus statuses to show live updates.
    --------------------------------------------------------- */
 function startStatusSimulation() {
     setInterval(function () {
+        if (buses.length === 0) return;
         // Pick one random bus and nudge its status for a "live" feel
         const options = ["Active", "Delayed", "Active", "Active"]; // weighted toward Active
         const i = Math.floor(Math.random() * buses.length);
@@ -426,7 +389,7 @@ function startStatusSimulation() {
 }
 
 /* ---------------------------------------------------------
-   9. Event wiring
+   10. Event wiring
    --------------------------------------------------------- */
 function setupEvents() {
     // Real-time search
@@ -464,13 +427,37 @@ function setupEvents() {
 }
 
 /* ---------------------------------------------------------
-   10. Init
+   11. Data loading - fetch from the (mock) server
+   --------------------------------------------------------- */
+async function loadData() {
+    showLoading();
+    try {
+        // Fetch buses and stats in parallel, just like real API calls.
+        const results = await Promise.all([
+            TransportAPI.getBuses(),
+            TransportAPI.getStats()
+        ]);
+        buses = results[0];
+        stats = results[1];
+
+        renderStats();
+        applyFilters();          // renders buses, pickups, timings + count
+        startStatusSimulation(); // begin live status updates only after data is in
+    } catch (err) {
+        console.error("Failed to load transport data:", err);
+        showError();
+    }
+}
+
+/* ---------------------------------------------------------
+   12. Init
    --------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", function () {
-    renderStats();
-    applyFilters();       // initial render of buses, pickups, timings + count
+    // Set up interactions immediately (they don't need data yet)
     setupEvents();
     setupMobileNav();
     setupTheme();
-    startStatusSimulation();
+
+    // Then request data from the server and render when it arrives
+    loadData();
 });

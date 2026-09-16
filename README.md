@@ -39,9 +39,11 @@ college-transport-portal/
 │
 ├── index.html          # Markup and page structure
 ├── css/
-│   └── style.css       # All styling, theming and responsive rules
+│   └── style.css       # All styling, theming, skeletons and responsive rules
 ├── js/
-│   └── script.js       # Data, search, filters, modal, dark mode
+│   ├── data.js         # Dummy dataset (20 buses) - stands in for the database
+│   ├── api.js          # Mock API layer that simulates fetching from a server
+│   └── script.js       # UI: loading states, search, filters, modal, dark mode
 ├── images/             # (optional images)
 └── README.md
 ```
@@ -78,10 +80,36 @@ Tested at approximately **1920px, 1366px, 1024px, 768px, 480px and 375px**.
 
 ---
 
+## Data & Mock API (production-ready pattern)
+
+The UI never reads the dataset directly. Instead it **fetches data asynchronously
+from a mock API** (`js/api.js`), which currently returns the dummy records in
+`js/data.js` after a simulated network delay — so you see real loading skeletons,
+exactly as the app would behave against a live backend.
+
+To connect a real server in production, you only change `js/api.js` — the UI code
+stays the same:
+
+```js
+// js/api.js  (production)
+getBuses: async function () {
+    const res = await fetch(`${this.BASE_URL}/buses`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+}
+```
+
+The UI simply awaits these calls:
+
+```js
+const buses = await TransportAPI.getBuses();
+const stats = await TransportAPI.getStats();
+```
+
 ## Data Model
 
-Bus information is stored as a JavaScript array of objects, and all cards, tables
-and the route modal are generated dynamically from it:
+Bus information is stored as a JavaScript array of objects (in `js/data.js`), and
+all cards, tables and the route modal are generated dynamically from it:
 
 ```js
 const buses = [
@@ -94,9 +122,12 @@ const buses = [
         arrival: "08:00 AM",
         stops: 6,
         status: "Active",
+        driver: "R. Kumar",
+        contact: "+91 98765 10001",
+        capacity: 52,
         stopsList: ["Villupuram Bus Stand", "Kandamangalam", "Vikravandi", "..."]
     }
-    // ...12 buses total
+    // ...20 buses total
 ];
 ```
 
